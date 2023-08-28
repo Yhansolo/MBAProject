@@ -1,16 +1,30 @@
+# LIBRARIES
+# Visuals and data wrangling
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Machine Learning
 from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
 
+# balancing data
+import imblearn
+from imblearn import under_sampling, over_sampling
+from imblearn.over_sampling import SMOTE, ADASYN
+from imblearn.over_sampling import RandomOverSampler
+
+# _________________________________________________________________________________
+
 ###### This algoritm has the purpose of classify early warnings, which is news' description
 ###### that it's supposed to be defined as incident or not manually by a Team.
 ###### The main idea is using Machine learning to determine automatically if an alert is considered
 ###### critical incident or not based on the data already gathered manually by the Early Warning and Monitoring team.
+
+# FUNCTIONS
 
 
 # Function 1 - encoding data in 0 and 1
@@ -20,12 +34,16 @@ def convert_status(status):
     if status == "Incident Created":
         return 1
     else:
-        return -1
+        return 0
 
         ### Extracting data with pandas features
 
 
-# Load the data and get desired columns on data --- Incident Report
+# _____________________________________________________________________________________
+
+# STEPS
+
+# -----------Load the data and get desired columns on data --- Incident Report----------
 
 data_incident = pd.read_csv(r"incident_report1.csv", encoding="ISO-8859-1")
 df_inc = pd.DataFrame(data_incident)
@@ -33,10 +51,9 @@ df_inc = df_inc.dropna(subset=["Description"])
 df_inc["is_incident"] = 1
 df_inc = df_inc[["Description", "is_incident"]]
 
+# -----------Load the data and get desired columns --- Early Warning Report-------------
 
-# Load the data and get desired columns --- Early Warning Report
-
-data_ew = pd.read_csv(r"earlywarning_report2.csv", encoding="UTF-8")
+data_ew = pd.read_csv(r"earlywarning_report1.csv", encoding="UTF-8")
 df_ew = pd.DataFrame(data_ew)
 df_ew = df_ew.dropna(subset=["Description"])
 df_ew["is_incident"] = df_ew["Action status"].apply(convert_status)
@@ -50,22 +67,70 @@ triage_closed = df[df["is_incident"] == 0]
 print("incident porcentage:\n", (len(incident_created) / len(df)) * 100, "%")
 print("Not incident porcentage:\n", (len(triage_closed) / len(df)) * 100, "%")
 
-df_x = df["Description"]
-df_y = df["is_incident"]
+X_imb = df.drop(["is_incident"], axis=1)
+y_imb = df["is_incident"]
 
-# spliting data in  - 80% for training &&&&& 20% test size
+# -------------creating a chart to analyse the balance of data - before------------------
 
-x_train, x_test, y_train, y_test = train_test_split(
-    df_x, df_y, train_size=0.8, test_size=0.2, random_state=4
+countsy = y_imb.value_counts()
+explode = (0.5, 0)
+fig1, ax1 = plt.subplots()
+ax1.pie(
+    countsy,
+    colors=["tab:blue", "tab:orange"],
+    autopct="%1.1f%%",
+    labels=countsy.index,
+    startangle=90,
+    shadow=False,
+    explode=explode,
 )
 
-# Using TFIDF VECTORIZER to preprocess the data (feature extraction, conversion to lower case and removal of stop words)
+ax1.set_title("Data balance before ROS", fontsize=14, fontweight="bold")
+
+plt.rcParams["font.size"] = 12
+plt.rcParams["font.family"] = "Arial"
+plt.show()
+
+# --------------Spliting data in  - 80% for training &&&&& 20% test size-----------------
+
+x_train, x_test, y_train, y_test = train_test_split(
+    X_imb, y_imb, train_size=0.8, test_size=0.2, random_state=4
+)
+
+# ----------------------Balancing train data using random oversampling-----------------
+
+# ros = RandomOverSampler(sampling_strategy=1) # Float
+ros = RandomOverSampler(sampling_strategy="not majority")  # String
+x_train_ros, y_train_ros = ros.fit_resample(x_train, y_train)
+
+# ---------------Chart to check balanced data ------------------------------------------
+
+countsy_res = y_train_ros.value_counts()
+fig2, ax2 = plt.subplots()
+
+ax2.pie(
+    countsy_res,
+    colors=["tab:blue", "tab:orange"],
+    autopct="%1.1f%%",
+    labels=countsy_res.index,
+    startangle=90,
+    shadow=False,
+)
+
+ax2.set_title("Data balance before ROS", fontsize=14, fontweight="bold")
+
+plt.rcParams["font.size"] = 12
+plt.rcParams["font.family"] = "Arial"
+plt.show()
+
+# -----------------Using TFIDF VECTORIZER to preprocess the data-------------------------
+# -------(feature extraction, conversion to lower case and removal of stop words)--------
 
 tfvec = TfidfVectorizer(min_df=1, stop_words="english", lowercase=True)
-x_trainFeat = tfvec.fit_transform(x_train)
+x_trainFeat = tfvec.fit_transform(x_train_ros)
 x_testFeat = tfvec.transform(x_test)
 
-# SVM is used to model
+# -------------------------------SVM is used to model-------------------------------------
 
 y_trainSvm = y_train.astype("int")
 classifierModel = LinearSVC()
@@ -101,6 +166,7 @@ cmSVM = confusion_matrix(actual_Y, predResult)
 print("Confusion matrix using SVM:")
 print(cmSVM)
 
+
 print("~~~~~~~~~~MNB RESULTS~~~~~~~~~~")
 # Accuracy score using MNB
 print(
@@ -120,6 +186,6 @@ cmMNb = confusion_matrix(actual_Y, predResult2)
 print("Confusion matrix using MNB:")
 print(cmMNb)
 
-#final processing print
-#final
+# final processing print
+# fff
 print("Final preprocessing")
