@@ -70,26 +70,6 @@ print("Not incident porcentage:\n", (len(triage_closed) / len(df)) * 100, "%")
 X_imb = df.drop(["is_incident"], axis=1)
 y_imb = df["is_incident"]
 
-# -------------creating a chart to analyse the balance of data - before------------------
-
-countsy = y_imb.value_counts()
-explode = (0.5, 0)
-fig1, ax1 = plt.subplots()
-ax1.pie(
-    countsy,
-    colors=["tab:blue", "tab:orange"],
-    autopct="%1.1f%%",
-    labels=countsy.index,
-    startangle=90,
-    shadow=False,
-    explode=explode,
-)
-
-ax1.set_title("Data balance before ROS", fontsize=14, fontweight="bold")
-
-plt.rcParams["font.size"] = 12
-plt.rcParams["font.family"] = "Arial"
-plt.show()
 
 # --------------Spliting data in  - 80% for training &&&&& 20% test size-----------------
 
@@ -103,10 +83,28 @@ x_train, x_test, y_train, y_test = train_test_split(
 ros = RandomOverSampler(sampling_strategy="not majority")  # String
 x_train_ros, y_train_ros = ros.fit_resample(x_train, y_train)
 
-# ---------------Chart to check balanced data ------------------------------------------
+# ---------------Chart to check balanced data before and after ROS---------------------
 
 countsy_res = y_train_ros.value_counts()
-fig2, ax2 = plt.subplots()
+fig1, (ax1, ax2) = plt.subplots(1, 2)
+
+countsy = y_imb.value_counts()
+explode = (0.2, 0)
+# fig1, ax1 = plt.subplots()
+ax1.pie(
+    countsy,
+    colors=["tab:blue", "tab:orange"],
+    autopct="%1.1f%%",
+    labels=countsy.index,
+    startangle=90,
+    shadow=False,
+    explode=explode,
+)
+
+ax1.set_title("Incident balance before ROS", fontsize=10, fontweight="bold")
+
+plt.rcParams["font.size"] = 12
+plt.rcParams["font.family"] = "Arial"
 
 ax2.pie(
     countsy_res,
@@ -116,29 +114,34 @@ ax2.pie(
     startangle=90,
     shadow=False,
 )
-
-ax2.set_title("Data balance before ROS", fontsize=14, fontweight="bold")
+ax2.set_title("Incident balance After ROS", fontsize=10, fontweight="bold")
 
 plt.rcParams["font.size"] = 12
 plt.rcParams["font.family"] = "Arial"
 plt.show()
 
+
 # -----------------Using TFIDF VECTORIZER to preprocess the data-------------------------
 # -------(feature extraction, conversion to lower case and removal of stop words)--------
 
+# I needed to change the type from Dataframe to Series before applying TFIDF Vectorizer using the function squeeze
+x_train_ros_series = x_train_ros.squeeze()
+x_test_series = x_test.squeeze()
+
+
 tfvec = TfidfVectorizer(min_df=1, stop_words="english", lowercase=True)
-x_trainFeat = tfvec.fit_transform(x_train_ros)
-x_testFeat = tfvec.transform(x_test)
+x_trainFeat = tfvec.fit_transform(x_train_ros_series)
+x_testFeat = tfvec.transform(x_test_series)
 
 # -------------------------------SVM is used to model-------------------------------------
 
-y_trainSvm = y_train.astype("int")
+y_trainSvm = y_train_ros.astype("int")
 classifierModel = LinearSVC()
 classifierModel.fit(x_trainFeat, y_trainSvm)
 predResult = classifierModel.predict(x_testFeat)
 
 # GNB is used to model
-y_trainGnb = y_train.astype("int")
+y_trainGnb = y_train_ros.astype("int")
 classifierModel2 = MultinomialNB()
 classifierModel2.fit(x_trainFeat, y_trainGnb)
 predResult2 = classifierModel2.predict(x_testFeat)
